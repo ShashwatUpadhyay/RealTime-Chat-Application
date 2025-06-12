@@ -20,15 +20,64 @@ class ChatConsumer(WebsocketConsumer):
     
     def chat_message(self, event):
         data = json.loads(event['value'])
+        print(data)
         self.send(text_data=json.dumps(data))
     
     def receive(self, text_data=None, bytes_data=None): 
         data = json.loads(text_data)
-        user = data.get('user')
-        content = data.get('content')
-        room = Room.objects.get(code=self.room_name)
-        Message.create_message(room.id, user, content)
+        print("Received data:", data)
+        
+        # Handle chat messages
+        if 'user' in data and 'content' in data:
+            user = data.get('user')
+            content = data.get('content')
+            room = Room.objects.get(code=self.room_name)
+            Message.create_message(room.id, user, content)
+            
+            # Broadcast chat message to room
+            self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'chat_message',
+                    'value': json.dumps({
+                        'user': user,
+                        'content': content
+                    })
+                }
+            )
+            return
 
+        # Handle WebRTC signaling
+        if 'action' in data and 'message' in data:
+            action = data['action']
+            message = data['message']
+            
+            if action in ['new-peer', 'new-answer']:
+                receiver_channel_name = message.get('receiver_channel_name')
+                if receiver_channel_name:
+                    self.channel_layer.send(
+                        receiver_channel_name,
+                        {
+                            'type': 'send_sdp',
+                            'value': json.dumps(data)
+                        }
+                    )
+                    return
+            
+            # For other signaling messages, broadcast to room
+            data['message']['receiver_channel_name'] = self.channel_name
+            self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'send_sdp',
+                    'value': json.dumps(data)
+                }
+            )
+
+    def send_sdp(self, event):
+        data = json.loads(event['value'])
+        self.send(text_data=json.dumps(data))
+    
     def disconnect(self, code):
         print("disconnected")
         self.channel_layer.group_discard(

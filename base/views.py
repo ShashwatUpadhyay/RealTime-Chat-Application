@@ -16,7 +16,7 @@ def home(request):
 
 def chat(request, code):
     room = Room.objects.get(code=code)
-    messages = Message.objects.filter(room=room).order_by('-created_at')
+    messages = Message.objects.filter(room=room)
     return render(request, 'base/chat.html', {"room": room, "messages": messages})
     
 def generate_random_string(length):
