@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            height: 100vh;
+            display: flex;
+        }
+
+        .main-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        .video-section {
+            flex: 2;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background-color: #2a2a2a;
+        }
+
+        .video-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            height: calc(100vh - 200px);
+        }
+
+        .video-box {
+            background-color: #333;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .control-btn {
+            background-color: #444;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.3s;
+        }
+
+        .control-btn:hover {
+            background-color: #555;
+        }
+
+        .control-btn.end {
+            background-color: #ff4444;
+        }
+
+        .control-btn.end:hover {
+            background-color: #ff6666;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #2a2a2a;
+            border-left: 1px solid #444;
+        }
+
+        .chat-header {
+            padding: 20px;
+            background-color: #333;
+            border-bottom: 1px solid #444;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            max-width: 80%;
+        }
+
+        .message.sent {
+            margin-left: auto;
+        }
+
+        .message-content {
+            padding: 10px 15px;
+            border-radius: 15px;
+            background-color: #444;
+        }
+
+        .message.sent .message-content {
+            background-color: #1a73e8;
+        }
+
+        .chat-input {
+            padding: 20px;
+            background-color: #333;
+            border-top: 1px solid #444;
+        }
+
+        .chat-input form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
+            background-color: #444;
+            color: white;
+        }
+
+        .chat-input button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            background-color: #1a73e8;
+            color: white;
+            cursor: pointer;
+        }
+
+        .chat-input button:hover {
+            background-color: #1557b0;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Video Section -->
+        <div class="video-section">
+            <div class="video-container">
+                <div class="video-box">
+                    <video id="localVideo" autoplay muted playsinline></video>
+                    <div class="video-label">You</div>
+                </div>
+                <div class="video-box">
+                    <video id="remoteVideo" autoplay playsinline></video>
+                    <div class="video-label">Stranger</div>
+                </div>
+            </div>
+            <div class="controls">
+                <button class="control-btn">
+                    <span>🎤</span>
+                    Mute
+                </button>
+                <button class="control-btn">
+                    <span>📹</span>
+                    Stop Video
+                </button>
+                <button class="control-btn end">
+                    <span>❌</span>
+                    End Call
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <div class="chat-header">
+                <h2>Chat #{{room.code}}</h2>
+            </div>
+            <div class="chat-messages">
+                {% for message in messages %}
+                <div class="message {% if message.user == request.session.name %}sent{% else %}received{% endif %}">
+                    <div class="message-content">
+                        {{message.user}}: {{message.content}}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="chat-input">
+                <form id="chatForm">
+                    <input type="text" placeholder="Type a message..." />
+                    <button type="submit">Send</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const roomCode = '{{room.code}}';
+        const chatForm = document.getElementById('chatForm');
+        const chatInput = chatForm.querySelector('input');
+        const chatMessages = document.querySelector('.chat-messages');
+        const socket = new WebSocket(`wss://${window.location.host}/ws/chat/${roomCode}`);
+
+        socket.onopen = function(event) {
+            console.log('Connected to the server');
+        };
+        
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            // Handle connection message
+            if (data.type === 'connection_established') {
+                console.log(data.message);
+                return;
+            }
+            
+            // Handle chat messages
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            if (data.user === '{{request.session.name}}') {
+                messageElement.className += ' sent';
+            } else {
+                messageElement.className += ' received';
+            }
+
+            messageElement.innerHTML = `
+                <div class="message-content">
+                    ${data.user}: ${data.content}
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        };
+        
+
+        
+
+        // Basic chat functionality
+        
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const message = chatInput.value.trim();
+            if (message) {
+                socket.send(JSON.stringify({
+                    user: '{{request.session.name}}',
+                    content: message
+                }));
+                chatInput.value = '';
+            }
+        });
+
+        // Video controls functionality
+        const muteBtn = document.querySelector('.control-btn:nth-child(1)');
+        const videoBtn = document.querySelector('.control-btn:nth-child(2)');
+        const endBtn = document.querySelector('.control-btn.end');
+
+        let isMuted = false;
+        let isVideoOff = false;
+
+        muteBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            muteBtn.innerHTML = `<span>${isMuted ? '🔇' : '🎤'}</span> ${isMuted ? 'Unmute' : 'Mute'}`;
+        });
+
+        videoBtn.addEventListener('click', () => {
+            isVideoOff = !isVideoOff;
+            videoBtn.innerHTML = `<span>${isVideoOff ? '📷' : '📹'}</span> ${isVideoOff ? 'Start Video' : 'Stop Video'}`;
+        });
+
+        endBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to end the call?')) {
+                // Add your end call logic here
+                console.log('Call ended');
+            }
+        });
+    </script>
+</body>
+</html> 
