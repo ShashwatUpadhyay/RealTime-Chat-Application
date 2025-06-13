@@ -15,7 +15,8 @@ class ChatConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps({
             'type': 'connection_established',
             'message': 'You are now connected to the chat room',
-            'room_name': self.room_name
+            'room_name': self.room_name,
+            'channel_name': self.channel_name,
         }))
     
     def chat_message(self, event):
@@ -55,7 +56,8 @@ class ChatConsumer(WebsocketConsumer):
             if action in ['new-peer', 'new-answer']:
                 receiver_channel_name = message.get('receiver_channel_name')
                 if receiver_channel_name:
-                    self.channel_layer.send(
+                    print("Sending to receiver channel:", receiver_channel_name , self.channel_name)
+                    self.channel_layer.group_send(
                         receiver_channel_name,
                         {
                             'type': 'send_sdp',
@@ -76,6 +78,7 @@ class ChatConsumer(WebsocketConsumer):
 
     def send_sdp(self, event):
         data = json.loads(event['value'])
+        print("Received data from send_sdp:", data)
         self.send(text_data=json.dumps(data))
     
     def disconnect(self, code):

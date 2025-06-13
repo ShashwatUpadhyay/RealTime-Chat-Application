@@ -239,13 +239,14 @@
         socket.onopen = function(event) {
             console.log('Connected to the server');
             sendSignal('new-peer', {
-                'receiver_channel_name': '{{request.session.name}}'
+                'peer_user': '{{request.session.name}}'
             });
         };
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
-            console.log("Received message:", data);
+            console.log("Received message :", data);
+            
 
             // Handle WebRTC signaling
             if (data.action) {
@@ -284,6 +285,11 @@
                     }
                     return;
                 }
+            }else{
+                sendSignal('new-peer', {
+                    'receiver_channel_name': data.channel_name,
+                    'peer_user': '{{request.session.name}}'
+                });
             }
 
             // Handle connection message
@@ -564,7 +570,6 @@
             remoteVideo.playsinline = true;
 
             var videoWrapper = document.createElement('div')
-
             videoContainer.appendChild(videoWrapper);
             return remoteVideo;
         }
