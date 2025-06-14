@@ -56,7 +56,7 @@ class ChatConsumer(WebsocketConsumer):
             if action in ['new-peer', 'new-answer']:
                 receiver_channel_name = message.get('receiver_channel_name')
                 if receiver_channel_name:
-                    print("Sending to receiver channel:", receiver_channel_name , self.channel_name)
+                    print("Sending to receiver channel:", receiver_channel_name, " - " , self.channel_name)
                     self.channel_layer.group_send(
                         receiver_channel_name,
                         {
@@ -64,17 +64,16 @@ class ChatConsumer(WebsocketConsumer):
                             'value': json.dumps(data)
                         }
                     )
+                else:
+                    data['message']['receiver_channel_name'] = self.channel_name
+                    self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'send_sdp',
+                            'value': json.dumps(data)
+                        }
+                    )
                     return
-            
-            # For other signaling messages, broadcast to room
-            data['message']['receiver_channel_name'] = self.channel_name
-            self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'send_sdp',
-                    'value': json.dumps(data)
-                }
-            )
 
     def send_sdp(self, event):
         data = json.loads(event['value'])

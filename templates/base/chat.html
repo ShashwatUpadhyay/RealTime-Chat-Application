@@ -238,9 +238,7 @@
 
         socket.onopen = function(event) {
             console.log('Connected to the server');
-            sendSignal('new-peer', {
-                'peer_user': '{{request.session.name}}'
-            });
+            sendSignal('new-peer', {});
         };
 
         socket.onmessage = function(event) {
@@ -285,11 +283,6 @@
                     }
                     return;
                 }
-            }else{
-                sendSignal('new-peer', {
-                    'receiver_channel_name': data.channel_name,
-                    'peer_user': '{{request.session.name}}'
-                });
             }
 
             // Handle connection message
