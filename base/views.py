@@ -15,9 +15,12 @@ def home(request):
 
 
 def chat(request, code):
-    room = Room.objects.get(code=code)
-    messages = Message.objects.filter(room=room)
-    return render(request, 'base/chat.html', {"room": room, "messages": messages})
+    try:
+        room = Room.objects.get(code=code)
+        messages = Message.objects.filter(room=room)
+        return render(request, 'base/chat.html', {"room": room, "messages": messages})
+    except Room.DoesNotExist:
+        return redirect('home')
     
 def generate_random_string(length):
     characters = string.ascii_letters + string.digits
