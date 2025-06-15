@@ -235,22 +235,22 @@
         const chatMessages = document.querySelector('.chat-messages');
         const ws_url = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         const socket = new WebSocket(`${ws_url}${window.location.host}/ws/chat/${roomCode}`);
-
+        var peerUser = '';
         socket.onopen = function(event) {
             console.log('Connected to the server');
             sendSignal('new-peer', {
-                'peer_user': '{{request.session.name}}'
+                'receiver_channel_name': myChannelName
             });
         };
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
             console.log("Received message :", data);
-            
+           
 
             // Handle WebRTC signaling
             if (data.action) {
-                var peerUser = data['peer'];
+                peerUser = data['peer'];
                 var action = data['action'];
                 var receiver_channel_name = data['message']['receiver_channel_name'];
                 
@@ -285,13 +285,7 @@
                     }
                     return;
                 }
-            }else{
-                sendSignal('new-peer', {
-                    'receiver_channel_name': data.channel_name,
-                    'peer_user': '{{request.session.name}}'
-                });
             }
-
             // Handle connection message
             if (data.type === 'connection_established') {
                 console.log(data.message);
@@ -348,6 +342,7 @@
                     'message': message
                 });
                 socket.send(jsonStr);
+                console.log("Sent signal:", jsonStr);
             } else {
                 console.error('Cannot send signal: WebSocket is not open');
             }
@@ -421,13 +416,13 @@
             console.log("Creating offer for peer:", peerUser);
             var peer = new RTCPeerConnection(configuration);
             addLocalTracks(peer);
-            
+            console.log(peer);
             var dc = peer.createDataChannel('channel');
             dc.addEventListener('open', () => {
                 console.log('Data channel opened');
             });
             dc.addEventListener('message', dcOnMessage);
-            
+            console.log(dc);
             var remoteVideo = createVideo(peerUser);
             setOnTrack(peer, remoteVideo);
             mapPeers[peerUser] = [peer, dc];

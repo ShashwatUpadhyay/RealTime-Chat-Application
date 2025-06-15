@@ -4,19 +4,36 @@ import json
 from base.models import Room, Message
 
 class ChatConsumer(WebsocketConsumer):
+    connected_peers = {}
     def connect(self, **kwargs):
         self.room_name = self.scope['url_route']['kwargs']['code'] 
         self.room_group_name = f'chat_{self.room_name}'
+        
+        if self.room_name not in ChatConsumer.connected_peers:
+            ChatConsumer.connected_peers[self.room_name] = []
+        ChatConsumer.connected_peers[self.room_name].append(self.channel_name)
+        print("Connected peers:", ChatConsumer.connected_peers)
+        
         async_to_sync(self.channel_layer.group_add)(
             self.room_group_name,
             self.channel_name)
         self.accept()
+        
         room = Room.objects.get(code=self.room_name)
+        receiver_channel_name = ''
+        for i in ChatConsumer.connected_peers[self.room_name]:
+            if i != self.channel_name:
+                receiver_channel_name = i
         self.send(text_data=json.dumps({
             'type': 'connection_established',
             'message': 'You are now connected to the chat room',
             'room_name': self.room_name,
-            'channel_name': self.channel_name,
+            'peer': self.channel_name,
+            'action': 'new-peer',
+            'message': {
+                'receiver_channel_name': receiver_channel_name
+            },
+            'connected_peers': ChatConsumer.connected_peers[self.room_name]
         }))
     
     def chat_message(self, event):
@@ -41,6 +58,8 @@ class ChatConsumer(WebsocketConsumer):
                 {
                     'type': 'chat_message',
                     'value': json.dumps({
+                        'connected_peers': ChatConsumer.connected_peers[self.room_name],
+                        'peer': self.channel_name,
                         'user': user,
                         'content': content
                     })
@@ -58,8 +77,10 @@ class ChatConsumer(WebsocketConsumer):
                 if receiver_channel_name:
                     print("Sending to receiver channel:", receiver_channel_name , self.channel_name)
                     self.channel_layer.group_send(
-                        receiver_channel_name,
+                        self.room_group_name,
                         {
+                            'connected_peers': ChatConsumer.connected_peers[self.room_name],
+                            'peer': self.channel_name,
                             'type': 'send_sdp',
                             'value': json.dumps(data)
                         }
@@ -71,6 +92,8 @@ class ChatConsumer(WebsocketConsumer):
             self.channel_layer.group_send(
                 self.room_group_name,
                 {
+                    'connected_peers': ChatConsumer.connected_peers[self.room_name],
+                    'peer': self.channel_name,
                     'type': 'send_sdp',
                     'value': json.dumps(data)
                 }
@@ -87,3 +110,8 @@ class ChatConsumer(WebsocketConsumer):
             self.room_group_name,
             self.channel_name
         )
+        if self.room_name in ChatConsumer.connected_peers:
+            ChatConsumer.connected_peers[self.room_name] = [
+                ch for ch in ChatConsumer.connected_peers[self.room_name]
+                if ch != self.channel_name
+            ]
