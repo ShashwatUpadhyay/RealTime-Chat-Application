@@ -36,10 +36,10 @@ def get_latest_message(sender, instance, created, **kwargs):
             "content": instance.content,
             "created_at": instance.created_at.isoformat(),
         }
-        async_to_sync(channel_layer.group_send)(
-            f"chat_{instance.room.code}",
-            {
-                "type": "chat_message",
-                "value": json.dumps(data),
-            }
-        )
+        # async_to_sync(channel_layer.group_send)(
+        #     f"chat_{instance.room.code}",
+        #     {
+        #         "type": "send_sdp",
+        #         "value": json.dumps(data),
+        #     }
+        # )
