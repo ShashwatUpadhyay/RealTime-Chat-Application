@@ -176,7 +176,7 @@
         <div class="video-section">
             <h1>Voice chat setup</h1>
             <button onclick="start()">Start</button>
-            <audio id="remoteAudio" autoplay></audio>
+            <audio id="remote" autoplay></audio>
         </div>
 
         <!-- Chat Section -->
@@ -203,29 +203,21 @@
     </div>
 
     <script>
-        const peer = new RTCPeerConnection({
-            iceServers: [
-              { urls: "stun:stun.l.google.com:19302" }
-            ],
-            // 🚨 Forces Chrome to consider all candidates (host, srflx, relay)
-            iceTransportPolicy: "all"
+        const peer = new RTCPeerConnection({ 
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] 
           });
-        const pendingCandidates = [];
-        let remoteSet = false;
+        let answerSender = false;
+        const remoteAudio = document.getElementById("remote");
+       
 
-        const remoteAudio = document.getElementById("remoteAudio");
-        peer.onicecandidate = (e) => {
+        peer.onicecandidate = e => {
             if (e.candidate) {
-              console.log("📤 Sending ICE candidate:", e.candidate);
               socket.send(JSON.stringify({ ice: e.candidate }));
-            } else {
-              console.log("✅ ICE gathering complete");
             }
           };
-          
-      
-        peer.ontrack = (e) => {
+        peer.ontrack = e => {
             remoteAudio.srcObject = e.streams[0];
+            remoteAudio.play();
           };
         peer.onconnectionstatechange = () => {
             console.log("WebRTC connection state:", peer.connectionState);
@@ -251,8 +243,7 @@
             console.log("Received message:", data);
           
             if (data.type === 'connection_established') {
-              console.log(data.message);
-              return;
+              console.log("connection_established : " + data.message);
             }
           
             if (data.user && data.content) {
@@ -275,50 +266,29 @@
             }
           
             if (data.offer) {
-              console.log("Received offer:", data.offer);
-          
-              await peer.setRemoteDescription(new RTCSessionDescription(data.offer));
-              remoteSet = true;
-          
-              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-              stream.getTracks().forEach(t => peer.addTrack(t, stream));
-          
-              const answer = await peer.createAnswer();
-              await peer.setLocalDescription(answer);
-              socket.send(JSON.stringify({ answer }));
-          
-              // ⏬ Now add any pending ICE candidates
-              for (const ice of pendingCandidates) {
-                await peer.addIceCandidate(new RTCIceCandidate(ice));
+                console.log("offer : " + data.offer);
+                await peer.setRemoteDescription(data.offer);
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(t => peer.addTrack(t, stream));
+                const answer = await peer.createAnswer();
+                await peer.setLocalDescription(answer);
+                socket.send(JSON.stringify({ answer }));
               }
-              pendingCandidates.length = 0;
-            }
-          
-            if (data.answer) {
-              await peer.setRemoteDescription(new RTCSessionDescription(data.answer));
-              remoteSet = true;
-          
-              // ⏬ Apply any ICE candidates received before this
-              for (const ice of pendingCandidates) {
-                await peer.addIceCandidate(new RTCIceCandidate(ice));
+        
+              if (data.answer) {
+                console.log("answer : " + data.answer);
+                await peer.setRemoteDescription(data.answer);
               }
-              pendingCandidates.length = 0;
-            }
-          
-            if (data.ice) {
-              if (!remoteSet) {
-                console.log("Queuing ICE until remoteDescription is set");
-                pendingCandidates.push(data.ice);
-              } else {
-                console.log("Applying ICE candidate:", data.ice);
-                await peer.addIceCandidate(new RTCIceCandidate(data.ice));
-              }
-              peer.oniceconnectionstatechange = () => {
-                console.log("ICE connection state:", peer.iceConnectionState);
-              };
-    
-            }
-          };
+        
+              if (data.ice) {
+                console.log("ice : " + data.ice);
+                  await peer.addIceCandidate(new RTCIceCandidate(data.ice));
+                }    
+        };
+
+        peer.oniceconnectionstatechange = () => {
+          console.log("ICE connection state:", peer.iceConnectionState);
+        };
         
         
 
@@ -350,19 +320,14 @@
             }
         });
         
-        async  function start(){
-            console.log("Starting call");
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getTracks().forEach(track => {
-            console.log("Adding track:", track.kind);
-            peer.addTrack(track, stream);
-            });
+        async function start() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => peer.addTrack(t, stream));
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      socket.send(JSON.stringify({ offer }));
+    }
 
-      
-            const offer = await peer.createOffer();
-            await peer.setLocalDescription(offer);
-            socket.send(JSON.stringify({ offer }));
-          }
       
 
     </script>

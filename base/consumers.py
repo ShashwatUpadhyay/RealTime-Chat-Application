@@ -19,7 +19,7 @@ class ChatConsumer(WebsocketConsumer):
             'type': 'connection_established',
             'message': 'You are now connected to the chat room',
             'room_name': self.room_name,
-            'peer': self.channel_name,
+            'channel_name': self.channel_name,
         }))
     
     def chat_message(self, event):
