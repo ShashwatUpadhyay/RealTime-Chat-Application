@@ -14,10 +14,9 @@
 
         body {
             font-family: Arial, sans-serif;
-            background-color: #1a1a1a;
-            color: white;
+            background-color: #Ffff;
+            color: yellow;
             height: 100vh;
-            display: flex;
         }
 
         .main-container {
@@ -168,6 +167,8 @@
         .chat-input button:hover {
             background-color: #1557b0;
         }
+        canvas { border: 1px solid black; cursor: crosshair; }
+
     </style>
 </head>
 <body>
@@ -177,6 +178,7 @@
             <h1>Voice chat setup</h1>
             <button onclick="start()">Start</button>
             <audio id="remote" autoplay></audio>
+            
         </div>
 
         <!-- Chat Section -->
@@ -200,9 +202,15 @@
                 </form>
             </div>
         </div>
+        
     </div>
-
+    <h2>Whiteboard Room: {{ room }}</h2>
+    <canvas id="board" width="800" height="600"></canvas>
     <script>
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+        
         const peer = new RTCPeerConnection({ 
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] 
           });
@@ -210,21 +218,7 @@
         const remoteAudio = document.getElementById("remote");
        
 
-        peer.onicecandidate = e => {
-            if (e.candidate) {
-              socket.send(JSON.stringify({ ice: e.candidate }));
-            }
-          };
-        peer.ontrack = e => {
-            remoteAudio.srcObject = e.streams[0];
-            remoteAudio.play();
-          };
-        peer.onconnectionstatechange = () => {
-            console.log("WebRTC connection state:", peer.connectionState);
-            if (peer.connectionState === "connected") {
-              console.log("✅ WebRTC connection established!");
-            }
-          };
+        
         
         const roomCode = '{{room.code}}';
         const chatForm = document.getElementById('chatForm');
@@ -232,7 +226,7 @@
         const chatMessages = document.querySelector('.chat-messages');
         const ws_url = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         const socket = new WebSocket(`${ws_url}${window.location.host}/ws/chat/${roomCode}`);
-
+        
         socket.onopen = function(event) {
             console.log('Connected to the server');
         };
@@ -241,7 +235,32 @@
         socket.onmessage = async function(event) {
             const data = JSON.parse(event.data);
             console.log("Received message:", data);
-          
+            
+            if (data.type === 'draw') {
+                const { x0, y0, x1, y1 } = data;  
+                ctx.beginPath();
+                ctx.moveTo(x0, y0);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
+              }  
+        
+        
+            canvas.onmousedown = e => { drawing = true; [x0, y0] = [e.offsetX, e.offsetY]; }
+            canvas.onmouseup = () => drawing = false;
+        
+            canvas.onmousemove = e => {
+              if (!drawing) return;  
+              const [x1, y1] = [e.offsetX, e.offsetY];
+              const payload = { type: 'draw', x0, y0, x1, y1 };
+              socket.send(JSON.stringify(payload));
+        
+              ctx.beginPath();
+              ctx.moveTo(x0, y0);
+              ctx.lineTo(x1, y1);
+              ctx.stroke();
+        
+              [x0, y0] = [x1, y1];
+            }
             if (data.type === 'connection_established') {
               console.log("connection_established : " + data.message);
             }
@@ -268,28 +287,46 @@
             if (data.offer) {
                 console.log("offer : " + data.offer);
                 await peer.setRemoteDescription(data.offer);
+                console.log("2. offer received and set")
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 stream.getTracks().forEach(t => peer.addTrack(t, stream));
                 const answer = await peer.createAnswer();
                 await peer.setLocalDescription(answer);
                 socket.send(JSON.stringify({ answer }));
+                console.log("3. answer sent to start connections")
               }
         
               if (data.answer) {
                 console.log("answer : " + data.answer);
                 await peer.setRemoteDescription(data.answer);
+                console.log("4. answer received and set")
               }
         
               if (data.ice) {
                 console.log("ice : " + data.ice);
                   await peer.addIceCandidate(new RTCIceCandidate(data.ice));
+                  console.log("5. ice received and added")
                 }    
         };
 
         peer.oniceconnectionstatechange = () => {
           console.log("ICE connection state:", peer.iceConnectionState);
         };
-        
+        peer.onicecandidate = e => {
+            if (e.candidate) {
+              socket.send(JSON.stringify({ ice: e.candidate }));
+            }
+          };
+        peer.ontrack = e => {
+            remoteAudio.srcObject = e.streams[0];
+            remoteAudio.play();
+          };
+        peer.onconnectionstatechange = () => {
+            console.log("WebRTC connection state:", peer.connectionState);
+            if (peer.connectionState === "connected") {
+              console.log("✅ WebRTC connection established!");
+            }
+          };
         
 
         peer.onconnectionstatechange = () => {
@@ -326,11 +363,12 @@
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
       socket.send(JSON.stringify({ offer }));
+      console.log("1. offer sent to start connections")
     }
 
       
 
     </script>
-        
+    
 </body>
 </html> 

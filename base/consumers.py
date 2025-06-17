@@ -36,6 +36,7 @@ class ChatConsumer(WebsocketConsumer):
             content = data.get('content')
             room = Room.objects.get(code=self.room_name)
             Message.create_message(room.id, user, content)
+            
         
         # Broadcast chat message to room
         async_to_sync(self.channel_layer.group_send)(
