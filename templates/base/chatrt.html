@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+  {% load static %}
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Chat</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #ffff;
+        color: yellow;
+        height: 100vh;
+      }
+
+      .main-container {
+        display: flex;
+        width: 100%;
+        height: 100vh;
+      }
+
+      .video-section {
+        flex: 2;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        background-color: #2a2a2a;
+      }
+
+      .video-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        height: calc(100vh - 200px);
+      }
+
+      .video-box {
+        background-color: #333;
+        border-radius: 8px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .video-box video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .video-label {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      .controls {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        padding: 20px;
+      }
+
+      .control-btn {
+        background-color: #444;
+        border: none;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 25px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.3s;
+      }
+
+      .control-btn:hover {
+        background-color: #555;
+      }
+
+      .control-btn.end {
+        background-color: #ff4444;
+      }
+
+      .control-btn.end:hover {
+        background-color: #ff6666;
+      }
+
+      .chat-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background-color: #2a2a2a;
+        border-left: 1px solid #444;
+        max-width: 30%;
+      }
+
+      .chat-header {
+        padding: 20px;
+        background-color: #333;
+        border-bottom: 1px solid #444;
+      }
+
+      .chat-messages {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+      }
+
+      .message {
+        margin-bottom: 15px;
+        max-width: 80%;
+      }
+
+      .message.sent {
+        margin-left: auto;
+      }
+
+      .message-content {
+        padding: 10px 15px;
+        border-radius: 15px;
+        background-color: #444;
+      }
+
+      .message.sent .message-content {
+        background-color: #1a73e8;
+      }
+
+      .chat-input {
+        padding: 20px;
+        background-color: #333;
+        border-top: 1px solid #444;
+      }
+
+      .chat-input form {
+        display: flex;
+        gap: 10px;
+      }
+
+      .chat-input input {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 25px;
+        background-color: #444;
+        color: white;
+      }
+
+      .chat-input button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 25px;
+        background-color: #1a73e8;
+        color: white;
+        cursor: pointer;
+      }
+
+      .chat-input button:hover {
+        background-color: #1557b0;
+      }
+      canvas {
+        border: 1px solid black;
+        cursor: crosshair;
+      }
+      .video-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+      }
+      .video-container video {
+        width: 400px;
+        object-fit: cover;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <!-- Video Section -->
+      <div class="video-section">
+        <button onclick="addVideo()">Add Video</button>
+        <div class="video-container">
+          <video id="localVideo" autoplay muted width="200"></video>
+          <video id="remoteVideo" autoplay width="200"></video>
+        </div>
+
+        <div id="setup">
+          <button onclick="hideSetup()">Hide Setup</button>
+          <p>Copy your Offer/Answer below and paste the remote one back.</p>
+
+          <textarea
+            id="local"
+            cols="80"
+            rows="10"
+            placeholder="Your SDP will appear here..."
+          ></textarea
+          ><br />
+          <textarea
+            id="remote"
+            cols="80"
+            rows="10"
+            placeholder="Paste remote SDP here..."
+          ></textarea
+          ><br />
+
+          <button onclick="start(true)">Start as Caller</button>
+          <button onclick="start(false)">Start as Receiver</button>
+        </div>
+        <div>
+          <h3>📁 File Transfer</h3>
+          <input type="file" id="fileInput" />
+          <button onclick="sendFile()">Send File</button>
+          <br /><progress
+            id="progressBar"
+            max="100"
+            value="0"
+            style="width: 300px"
+          ></progress>
+          <br /><a id="downloadLink" style="display: none">Download</a>
+        </div>
+        <audio id="audio" autoplay></audio>
+        <div id="whiteboard">
+          <h2>Whiteboard Room: {{ room }}</h2>
+          <canvas
+            id="board"
+            width="800"
+            height="600"
+            style="
+              border: 1px solid black;
+              cursor: crosshair;
+              background-color: white;
+            "
+          ></canvas>
+        </div>
+      </div>
+
+      <!-- Chat Section -->
+      <div class="chat-section">
+        <div class="chat-header">
+          <h2>Chat #{{room.code}}</h2>
+        </div>
+        <div class="chat-messages">
+          {% for message in messages %}
+          <div
+            class="message {% if message.user == request.session.name %}sent{% else %}received{% endif %}"
+          >
+            <div class="message-content">
+              {{message.user}}: {{message.content}}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="chat-input">
+          <form id="chatForm">
+            <input type="text" placeholder="Type a message..." />
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("board");
+      const ctx = canvas.getContext("2d");
+      let drawing = false;
+      const roomCode = "{{room.code}}";
+      const chatForm = document.getElementById("chatForm");
+      const chatInput = chatForm.querySelector("input");
+      const chatMessages = document.querySelector(".chat-messages");
+      const ws_url = window.location.protocol === "https:" ? "wss://" : "ws://";
+      const socket = new WebSocket(
+        `${ws_url}${window.location.host}/ws/chat/${roomCode}`
+      );
+      let dataChannel;
+      let receiveBuffer = [];
+      let receivedSize = 0;
+      const chunkSize = 16 * 1024; // 16 KB
+
+      socket.onopen = function (event) {
+        console.log("Connected to the server");
+      };
+
+      socket.onmessage = async function (event) {
+        const data = JSON.parse(event.data);
+        console.log("Received message:", data);
+
+        if (data.type === "draw") {
+          const { x0, y0, x1, y1 } = data;
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        }
+
+        canvas.onmousedown = (e) => {
+          drawing = true;
+          [x0, y0] = [e.offsetX, e.offsetY];
+        };
+        canvas.onmouseup = () => (drawing = false);
+
+        canvas.onmousemove = (e) => {
+          if (!drawing) return;
+          const [x1, y1] = [e.offsetX, e.offsetY];
+          const payload = { type: "draw", x0, y0, x1, y1 };
+          socket.send(JSON.stringify(payload));
+
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+
+          [x0, y0] = [x1, y1];
+        };
+        if (data.type === "connection_established") {
+          console.log("connection_established : " + data.message);
+        }
+
+        if (data.user && data.content) {
+          const messageElement = document.createElement("div");
+          messageElement.className = "message";
+          if (data.user === "{{request.session.name}}") {
+            messageElement.className += " sent";
+          } else {
+            messageElement.className += " received";
+          }
+
+          messageElement.innerHTML = `
+                    <div class="message-content">
+                        ${data.user}: ${data.content}
+                    </div>
+                `;
+
+          chatMessages.appendChild(messageElement);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      };
+
+      socket.onclose = function (event) {
+        console.log("WebSocket connection closed");
+      };
+
+      socket.onerror = function (error) {
+        console.error("WebSocket error:", error);
+      };
+
+      chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const message = chatInput.value.trim();
+        if (message && socket.readyState === WebSocket.OPEN) {
+          socket.send(
+            JSON.stringify({
+              user: "{{request.session.name}}",
+              content: message,
+            })
+          );
+          chatInput.value = "";
+        }
+      });
+      let pc, localStream;
+
+      function setupDataChannel() {
+        dataChannel = pc.createDataChannel("fileTransfer");
+        dataChannel.binaryType = "arraybuffer";
+
+        dataChannel.onopen = () => console.log("Data channel open");
+        dataChannel.onclose = () => console.log("Data channel closed");
+
+        pc.ondatachannel = (event) => {
+          const channel = event.channel;
+          channel.binaryType = "arraybuffer";
+          receiveBuffer = [];
+          receivedSize = 0;
+
+          channel.onmessage = (e) => {
+            if (e.data !== "EOF") {
+              receiveBuffer.push(e.data);
+              receivedSize += e.data.byteLength;
+              updateProgress(receivedSize);
+            } else {
+              // Reconstruct the file
+              const receivedBlob = new Blob(receiveBuffer);
+              const url = URL.createObjectURL(receivedBlob);
+              const link = document.getElementById("downloadLink");
+              link.href = url;
+              link.download = "received_file";
+              link.textContent = "Download File";
+              link.style.display = "block";
+              receiveBuffer = [];
+              receivedSize = 0;
+            }
+          };
+        };
+      }
+
+
+      async function start(isCaller) {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: true,
+        });
+        pc = new RTCPeerConnection({
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        });
+
+        pc.onicecandidate = (e) => {
+          if (e.candidate === null) {
+            document.getElementById("local").value = JSON.stringify(
+              pc.localDescription
+            );
+          }
+        };
+
+        pc.ontrack = (e) => {
+          document.getElementById("audio").srcObject = e.streams[0];
+          const stream = event.streams[0];
+          const hasVideo = stream.getVideoTracks().length > 0;
+
+          if (hasVideo) {
+            document.getElementById("remoteVideo").srcObject = stream;
+          } else {
+            document.getElementById("audio").srcObject = stream;
+          }
+        };
+
+        localStream
+          .getTracks()
+          .forEach((track) => pc.addTrack(track, localStream));
+
+        if (isCaller) {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+        } else {
+          console.log("in connection");
+          const remoteDesc = JSON.parse(
+            document.getElementById("remote").value
+          );
+          await pc.setRemoteDescription(new RTCSessionDescription(remoteDesc));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+        }
+      }
+
+      document.getElementById("remote").addEventListener("change", async () => {
+        const desc = JSON.parse(document.getElementById("remote").value);
+        if (pc && desc && !pc.remoteDescription) {
+          await pc.setRemoteDescription(new RTCSessionDescription(desc));
+        }
+      });
+      async function addVideo() {
+        const videoStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+        document.getElementById("localVideo").srcObject = videoStream;
+
+        // Add video track to the existing peer connection
+        videoStream.getTracks().forEach((track) => {
+          pc.addTrack(track, videoStream);
+        });
+      }
+      function hideSetup() {
+        document.getElementById("setup").style.display = "none";
+      }
+
+      
+      function sendFile() {
+        const file = document.getElementById("fileInput").files[0];
+        if (!file || !dataChannel || dataChannel.readyState !== "open") {
+          alert("Select file & ensure data channel is open");
+          return;
+        }
+
+        const reader = new FileReader();
+        let offset = 0;
+
+        reader.onload = (e) => {
+          const buffer = e.target.result;
+          const totalSize = buffer.byteLength;
+
+          function sendChunk() {
+            const chunk = buffer.slice(offset, offset + chunkSize);
+            dataChannel.send(chunk);
+            offset += chunkSize;
+            updateProgress((offset / totalSize) * 100);
+
+            if (offset < totalSize) {
+              setTimeout(sendChunk, 0); // Queue next chunk
+            } else {
+              dataChannel.send("EOF");
+            }
+          }
+
+          sendChunk();
+        };
+
+        reader.readAsArrayBuffer(file);
+      }
+
+      function updateProgress(value) {
+        document.getElementById("progressBar").value = value;
+      }
+    </script>
+  </body>
+</html>

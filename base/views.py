@@ -18,7 +18,7 @@ def chat(request, code):
     try:
         room = Room.objects.get(code=code)
         messages = Message.objects.filter(room=room)
-        return render(request, 'base/chat.html', {"room": room, "messages": messages})
+        return render(request, 'base/chatrt.html', {"room": room, "messages": messages})
     except Room.DoesNotExist:
         return redirect('home')
     
