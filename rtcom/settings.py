@@ -28,7 +28,6 @@ SECRET_KEY = 'django-insecure-6tb-%o!6xadlhp5w433tnjx&r85dy2u#=1tnbu@e-uu(su&bk1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG') 
 
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
@@ -144,4 +143,5 @@ CHANNEL_LAYERS = {
     },
 }
 
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 SYSTEM_CONTEXT = os.getenv("SYSTEM_CONTEXT").replace("\\n", "\n")
