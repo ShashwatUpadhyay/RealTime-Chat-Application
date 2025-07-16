@@ -30,12 +30,13 @@ class Message(models.Model):
 @receiver(post_save, sender=Message)
 def get_latest_message(sender, instance, created, **kwargs):
     if created:
-        channel_layer = get_channel_layer()
-        data = {
-            "user": instance.user,
-            "content": instance.content,
-            "created_at": instance.created_at.isoformat(),
-        }
+        pass
+        # channel_layer = get_channel_layer()
+        # data = {
+        #     "user": instance.user,
+        #     "content": instance.content,
+        #     "created_at": instance.created_at.isoformat(),
+        # }
         # async_to_sync(channel_layer.group_send)(
         #     f"chat_{instance.room.code}",
         #     {

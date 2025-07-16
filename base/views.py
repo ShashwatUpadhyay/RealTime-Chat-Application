@@ -2,16 +2,21 @@ from django.shortcuts import render, redirect
 import random
 import string
 from .models import Room, Message
+from utils.utility import generate_random_string
+from faker import Faker
+fake = Faker()
 # Create your views here.
 def home(request):
     session = request.session
+    if not session.get('name'):
+        session['name'] = fake.name()
     if request.method == 'POST':
         name = request.POST.get('name')
         code = request.POST.get('code')
         if not session.get('name'):
             session['name'] = name
         return redirect('chat', code=code)
-    return render(request, 'base/home.html', {'name': session['name'] if 'name' in session else None})
+    return render(request, 'base/home.html', {'name': session['name'] if 'name' in session else fake.name()})
 
 
 def chat(request, code):
@@ -21,11 +26,6 @@ def chat(request, code):
         return render(request, 'base/chatrt.html', {"room": room, "messages": messages})
     except Room.DoesNotExist:
         return redirect('home')
-    
-def generate_random_string(length):
-    characters = string.ascii_letters + string.digits
-    random_string = ''.join(random.choice(characters) for _ in range(length))
-    return random_string
 
 def create_room(request):
     code = generate_random_string(6).upper()

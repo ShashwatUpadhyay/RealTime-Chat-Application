@@ -1,0 +1,17 @@
+env/
+media/
+info.log
+error.log
+debug.log
+__pycache__/
+*.pyc
+db.sqlite3
+media/
+__pycache__/
+*/__pycache__/*
+*.log
+*.pot
+*.pyo
+.vscode/
+*.sqlite3
+.env

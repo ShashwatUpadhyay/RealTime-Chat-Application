@@ -211,15 +211,6 @@
         const ctx = canvas.getContext('2d');
         let drawing = false;
         
-        const peer = new RTCPeerConnection({ 
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] 
-          });
-        let answerSender = false;
-        const remoteAudio = document.getElementById("remote");
-       
-
-        
-        
         const roomCode = '{{room.code}}';
         const chatForm = document.getElementById('chatForm');
         const chatInput = chatForm.querySelector('input');
@@ -283,59 +274,8 @@
                 chatMessages.appendChild(messageElement);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
-          
-            if (data.offer) {
-                console.log("offer : " + data.offer);
-                await peer.setRemoteDescription(data.offer);
-                console.log("2. offer received and set")
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(t => peer.addTrack(t, stream));
-                const answer = await peer.createAnswer();
-                await peer.setLocalDescription(answer);
-                socket.send(JSON.stringify({ answer }));
-                console.log("3. answer sent to start connections")
-              }
-        
-              if (data.answer) {
-                console.log("answer : " + data.answer);
-                await peer.setRemoteDescription(data.answer);
-                console.log("4. answer received and set")
-              }
-        
-              if (data.ice) {
-                console.log("ice : " + data.ice);
-                  await peer.addIceCandidate(new RTCIceCandidate(data.ice));
-                  console.log("5. ice received and added")
-                }    
         };
 
-        peer.oniceconnectionstatechange = () => {
-          console.log("ICE connection state:", peer.iceConnectionState);
-        };
-        peer.onicecandidate = e => {
-            if (e.candidate) {
-              socket.send(JSON.stringify({ ice: e.candidate }));
-            }
-          };
-        peer.ontrack = e => {
-            remoteAudio.srcObject = e.streams[0];
-            remoteAudio.play();
-          };
-        peer.onconnectionstatechange = () => {
-            console.log("WebRTC connection state:", peer.connectionState);
-            if (peer.connectionState === "connected") {
-              console.log("✅ WebRTC connection established!");
-            }
-          };
-        
-
-        peer.onconnectionstatechange = () => {
-            console.log("Connection state:", peer.connectionState);
-            if (peer.connectionState === "connected") {
-              console.log("✅ WebRTC peer connection established.");
-            }
-          };
-         
         socket.onclose = function(event) {
             console.log('WebSocket connection closed');
         };
@@ -356,17 +296,6 @@
                 chatInput.value = '';
             }
         });
-        
-        async function start() {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => peer.addTrack(t, stream));
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
-      socket.send(JSON.stringify({ offer }));
-      console.log("1. offer sent to start connections")
-    }
-
-      
 
     </script>
     

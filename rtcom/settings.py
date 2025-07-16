@@ -11,10 +11,13 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -23,9 +26,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-6tb-%o!6xadlhp5w433tnjx&r85dy2u#=1tnbu@e-uu(su&bk1'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG') 
 
-ALLOWED_HOSTS = []
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 
 # Application definition
@@ -76,11 +81,17 @@ ASGI_APPLICATION = 'rtcom.asgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+          'ENGINE':'django.db.backends.mysql',
+          'NAME':os.getenv('DB_NAME'),
+          'USER':os.getenv('DB_USER'),
+          'PASSWORD':os.getenv('DB_PASSWORD'),
+          'HOST':'localhost',
+          'PORT':'3306',
+          'OPTIONS': {
+            'charset': 'utf8mb4',  # This is the important part
+        },
+      },
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -132,3 +143,5 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+SYSTEM_CONTEXT = os.getenv("SYSTEM_CONTEXT").replace("\\n", "\n")

@@ -2,6 +2,8 @@ from channels.generic.websocket import WebsocketConsumer
 from asgiref.sync import async_to_sync
 import json
 from base.models import Room, Message
+from .llm import ask_gemini
+from channels.layers import get_channel_layer
 
 class ChatConsumer(WebsocketConsumer):
     def connect(self, **kwargs):
@@ -39,17 +41,38 @@ class ChatConsumer(WebsocketConsumer):
             
         
         # Broadcast chat message to room
-        async_to_sync(self.channel_layer.group_send)(
-            self.room_group_name,
-            {
-                'type': 'send_sdp',
-                'value': json.dumps(data)
-            }
-        )
-
-        
+        if data.get('type') == 'send_sdp':
+            async_to_sync(self.channel_layer.group_send)(
+                self.room_group_name,
+                {
+                    'type': 'send_sdp',
+                    'value': json.dumps(data)
+                }
+            )
+        elif data.get('type') == 'draw':
+            async_to_sync(self.channel_layer.group_send)(
+                self.room_group_name,
+                {
+                    'type': 'draw',
+                    'value': json.dumps(data)
+                }
+            )
+            
     def send_sdp(self, event):
+        print("event: ", event)
+        value_data = json.loads(event["value"])
         self.send(text_data=event["value"])
+        if event["type"] == 'send_sdp' and "@bot" in value_data["content"] :
+            if value_data["user"] != 'BOT':
+                channel_layer = self.channel_layer
+                room = Room.objects.get(code=self.room_name)
+                gemini_response = ask_gemini(room.id,room.code,value_data["content"])
+        
+    def draw(self, event):
+        print("runing draw")
+        self.send(text_data=event["value"])
+
+
 
     
     def disconnect(self, code):
