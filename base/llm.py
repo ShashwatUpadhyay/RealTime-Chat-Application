@@ -8,7 +8,7 @@ from rtcom.settings import GEMINI_API_KEY,SYSTEM_CONTEXT
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Load Gemini model
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.5-pro")
 models = genai.list_models()
 
 
