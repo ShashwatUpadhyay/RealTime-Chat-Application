@@ -1,8 +1,9 @@
 from channels.generic.websocket import WebsocketConsumer
 from asgiref.sync import async_to_sync
 import json
+import threading
 from base.models import Room, Message
-from .llm import ask_gemini
+from .llm import ask_gemini,dummy_task
 from channels.layers import get_channel_layer
 
 class ChatConsumer(WebsocketConsumer):
@@ -59,14 +60,20 @@ class ChatConsumer(WebsocketConsumer):
             )
             
     def send_sdp(self, event):
-        print("event: ", event)
         value_data = json.loads(event["value"])
         self.send(text_data=event["value"])
         if event["type"] == 'send_sdp' and "@bot" in value_data["content"] :
             if value_data["user"] != 'BOT':
                 channel_layer = self.channel_layer
                 room = Room.objects.get(code=self.room_name)
-                gemini_response = ask_gemini(room.id,room.code,value_data["content"])
+                print("asking gemini..")
+                print(type(room.id),room.id)
+                print(type(room.code),room.code)
+                print(type(value_data["content"]),value_data["content"])
+                thread = threading.Thread(target=ask_gemini, args=(room.id,room.code,value_data["content"]))
+                thread.start()
+                print("thread created..")
+                
         
     def draw(self, event):
         print("runing draw")
