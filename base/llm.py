@@ -34,6 +34,13 @@ def build_chat_history(room_id):
 
 @background(schedule=1)
 def ask_gemini(roomid, roomcode ,prompt):
+    async_to_sync(channel_layer.group_send)(
+            f"chat_{roomcode}",
+            {
+                "type": "generating",
+                "value": json.dumps({"user":"BOT","content":"Generating..."}),
+            }
+        )
     try:
         print("Running ask_gemini")
         history = build_chat_history(roomid)

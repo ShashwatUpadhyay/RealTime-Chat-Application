@@ -58,6 +58,14 @@ class ChatConsumer(WebsocketConsumer):
                     'value': json.dumps(data)
                 }
             )
+        elif data.get('type') == 'generating':
+            async_to_sync(self.channel_layer.group_send)(
+                self.room_group_name,
+                {
+                    'type': 'generating',
+                    'value': json.dumps(data)
+                }
+            )
             
     def send_sdp(self, event):
         value_data = json.loads(event["value"])
@@ -66,7 +74,6 @@ class ChatConsumer(WebsocketConsumer):
                 channel_layer = self.channel_layer
                 room = Room.objects.get(code=self.room_name)
                 print("asking gemini..")
-                print(type(value_data["content"]),value_data["content"])
                 thread = threading.Thread(target=ask_gemini, args=(room.id,room.code,value_data["content"]))
                 thread.start()
                 print("thread created..")
@@ -76,9 +83,10 @@ class ChatConsumer(WebsocketConsumer):
     def draw(self, event):
         print("runing draw")
         self.send(text_data=event["value"])
-
-
-
+    
+    def generating(self, event):
+        print("runing generating")
+        self.send(text_data=event["value"])
     
     def disconnect(self, code):
         print("disconnected")
