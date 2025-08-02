@@ -61,19 +61,17 @@ class ChatConsumer(WebsocketConsumer):
             
     def send_sdp(self, event):
         value_data = json.loads(event["value"])
-        self.send(text_data=event["value"])
         if event["type"] == 'send_sdp' and "@bot" in value_data["content"] :
             if value_data["user"] != 'BOT':
                 channel_layer = self.channel_layer
                 room = Room.objects.get(code=self.room_name)
                 print("asking gemini..")
-                print(type(room.id),room.id)
-                print(type(room.code),room.code)
                 print(type(value_data["content"]),value_data["content"])
                 thread = threading.Thread(target=ask_gemini, args=(room.id,room.code,value_data["content"]))
                 thread.start()
                 print("thread created..")
                 
+        self.send(text_data=event["value"])
         
     def draw(self, event):
         print("runing draw")
