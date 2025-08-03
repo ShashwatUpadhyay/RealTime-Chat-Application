@@ -34,6 +34,7 @@ def build_chat_history(room_id):
 
 @background(schedule=1)
 def ask_gemini(roomid, roomcode ,prompt):
+    channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
             f"chat_{roomcode}",
             {
@@ -41,6 +42,7 @@ def ask_gemini(roomid, roomcode ,prompt):
                 "value": json.dumps({"user":"BOT","content":"Generating..."}),
             }
         )
+    print("generating acknowledgent sent")
     try:
         print("Running ask_gemini")
         history = build_chat_history(roomid)
@@ -50,7 +52,6 @@ def ask_gemini(roomid, roomcode ,prompt):
         response = chat.send_message(prompt)
         print("Response generated")
         Message.create_message(roomid, "BOT", response.text)
-        channel_layer = get_channel_layer()
         data = {
             "user" : "BOT",
             "content" : response.text,
